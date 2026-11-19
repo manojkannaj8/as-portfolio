@@ -1,0 +1,30 @@
+/* One world, two inks: the recruitment poster and the engineering sheet. */
+:root {
+  /* poster inks, sampled from the reference print */
+  --ink-deep: #0a1322;
+  --ink-navy: #15223c;
+  --ink-red: #e3401c;
+  --ink-red-deep: #b92c12;
+  --ink-orange: #f27b29;
+  --ink-mustard: #e8b143;
+  --paper: #efe2c4;
+  --paper-shade: #e2cfa6;
+  --paper-ink: #13213a;
+
+  /* drafting sheet */
+  --bp-bg: #0d0f10;
+  --chalk: #e8ece6;
+  --chalk-dim: rgb(232 236 230 / 0.66);
+  --chalk-faint: rgb(232 236 230 / 0.16);
+  --chalk-ghost: rgb(232 236 230 / 0.05);
+
+  --font-display: 'Saira Variable', 'Archivo Variable', sans-serif;
+  --font-text: 'Archivo Variable', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+  --gutter: clamp(16px, 2.8vw, 40px);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
+  color-scheme: dark;
+}
