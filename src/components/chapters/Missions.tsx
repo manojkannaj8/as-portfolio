@@ -1,47 +1,99 @@
+import { useLayoutEffect, useRef } from 'react'
+import gsap from 'gsap'
+import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { chapters, missions, sorties, type Mission } from '../../content/chapters'
+import { reducedMotion } from '../../motion/env'
 import { ArrowUpRight } from '../icons'
 import { ChapterHead, InkTitle } from './ChapterHead'
+import { MissionVisual } from './MissionVisual'
+
+const W = 600
+const P0 = [24, 54] as const
+const P1 = [W / 2, -6] as const
+const P2 = [W - 40, 46] as const
+const bez = (t: number) => {
+  const a = (1 - t) ** 2
+  const b = 2 * (1 - t) * t
+  const c = t * t
+  return [a * P0[0] + b * P1[0] + c * P2[0], a * P0[1] + b * P1[1] + c * P2[1]] as const
+}
+const tangent = (t: number) => {
+  const x = 2 * (1 - t) * (P1[0] - P0[0]) + 2 * t * (P2[0] - P1[0])
+  const y = 2 * (1 - t) * (P1[1] - P0[1]) + 2 * t * (P2[1] - P1[1])
+  return (Math.atan2(y, x) * 180) / Math.PI
+}
+const wpT = (i: number, n: number) => (i + 1) / (n + 1)
 
 /**
  * A flight path for each mission: one waypoint per logged entry, ending on the target.
- * It is drawn on as the brief scrolls into view.
+ * It draws on as the brief arrives; a small craft then flies it as the brief is read,
+ * lighting each waypoint (and its log line) as it passes.
  */
 function FlightPath({ stops }: { stops: number }) {
-  const W = 600
-  // waypoints sit on the quadratic curve itself
-  const P0 = [24, 54], P1 = [W / 2, -6], P2 = [W - 40, 46]
-  const pts = Array.from({ length: stops }, (_, i) => {
-    const t = (i + 1) / (stops + 1)
-    const a = (1 - t) ** 2, b = 2 * (1 - t) * t, c = t * t
-    return [a * P0[0] + b * P1[0] + c * P2[0], a * P0[1] + b * P1[1] + c * P2[1]] as const
-  })
+  const pts = Array.from({ length: stops }, (_, i) => bez(wpT(i, stops)))
+  const [sx, sy] = P0
   return (
     <svg className="fpath reveal-draw" viewBox={`0 0 ${W} 64`} aria-hidden="true">
       <path className="fpath__base" d={`M0 58H${W}`} />
       <path className="draw fpath__line" pathLength={1} d={`M${P0} Q ${P1} ${P2}`} />
-      <circle className="fpath__origin" cx="24" cy="54" r="4" />
+      <circle className="fpath__origin" cx={sx} cy={sy} r="4" />
       {pts.map(([x, y], i) => (
-        <g key={i} className="fpath__wp">
+        <g key={i} className="fpath__wp" data-i={i}>
           <rect x={x - 3.5} y={y - 3.5} width="7" height="7" transform={`rotate(45 ${x} ${y})`} />
         </g>
       ))}
-      <g className="fpath__target" transform={`translate(${W - 40} 46)`}>
+      <g className="fpath__target" transform={`translate(${P2[0]} ${P2[1]})`}>
         <circle r="9" />
         <path d="M-15 0h8M7 0h8M0 -15v8M0 7v8" />
+      </g>
+      <g className="fpath__craft" transform={`translate(${sx} ${sy})`}>
+        <path d="M9 0L-6 -5.5L-3 0L-6 5.5Z" />
+        <path className="fpath__trail" d="M-6 0H-26" />
       </g>
     </svg>
   )
 }
 
 function Brief({ m, i }: { m: Mission; i: number }) {
+  const ref = useRef<HTMLElement>(null)
+
+  useLayoutEffect(() => {
+    const el = ref.current!
+    const craft = el.querySelector<SVGGElement>('.fpath__craft')!
+    const wps = Array.from(el.querySelectorAll('.fpath__wp'))
+    const logs = Array.from(el.querySelectorAll('.brief__log li'))
+    const n = m.log.length
+    const set = (t: number) => {
+      const [x, y] = bez(t)
+      craft.setAttribute('transform', `translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${tangent(Math.min(0.999, Math.max(0.001, t))).toFixed(1)})`)
+      craft.classList.toggle('is-moving', t > 0.002 && t < 0.998)
+      wps.forEach((w, k) => w.classList.toggle('is-lit', t >= wpT(k, n)))
+      logs.forEach((l, k) => l.classList.toggle('is-lit', t >= wpT(k, n)))
+      el.classList.toggle('is-arrived', t >= 0.998)
+    }
+    if (reducedMotion()) {
+      set(1)
+      return
+    }
+    set(0)
+    const st = ScrollTrigger.create({
+      trigger: el.querySelector('.brief__body')!,
+      start: 'top 62%',
+      end: 'bottom 62%',
+      onUpdate: (self) => set(gsap.parseEase('power1.inOut')(self.progress)),
+    })
+    return () => st.kill()
+  }, [m.log.length])
+
   return (
-    <article className={`brief ${i % 2 ? 'brief--alt' : ''}`} aria-labelledby={`brief-${m.code}`}>
+    <article ref={ref} className={`brief ${i % 2 ? 'brief--alt' : ''}`} aria-labelledby={`brief-${m.code}`}>
       <div className="brief__id">
         <span className="brief__code" aria-hidden="true">
           {m.code}
         </span>
         <InkTitle as="h3" id={`brief-${m.code}`} text={m.name} className="brief__name" />
         <p className="brief__kind reg">{m.kind}</p>
+        <MissionVisual m={m} />
       </div>
 
       <div className="brief__body">

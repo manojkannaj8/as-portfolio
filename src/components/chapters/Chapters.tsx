@@ -7,6 +7,7 @@ import { Service } from './Service'
 import { Honours } from './Honours'
 import { Academy } from './Academy'
 import { Arsenal } from './Arsenal'
+import { Hyperspace } from './Hyperspace'
 
 /** The journey after the landing: five chapters, each arriving by coming into registration. */
 export function Chapters() {
@@ -23,6 +24,7 @@ export function Chapters() {
       <Service />
       <Honours />
       <Academy />
+      <Hyperspace />
       <Arsenal />
     </div>
   )

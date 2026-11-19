@@ -68,6 +68,7 @@ export function Landing() {
   const slipLayerRef = useRef<HTMLDivElement>(null)
   const marksRef = useRef<HTMLDivElement>(null)
   const dossierRef = useRef<HTMLDivElement>(null)
+  const halftoneRef = useRef<HTMLDivElement>(null)
 
   const fx = useRef<PlateFx | null>(null)
   const dust = useRef<Dust | null>(null)
@@ -111,6 +112,8 @@ export function Landing() {
       inks: inkRefs.current,
       words: Array.from(inkHeadRef.current!.querySelectorAll<HTMLElement>('.word')),
       hud: [topbarRef.current!, slipRef.current!],
+      halftone: halftoneRef.current!,
+      stage: stageRef.current!,
     }
     const goLive = () => {
       state.current.live = true
@@ -218,10 +221,19 @@ export function Landing() {
 
     const target = { x: 0, y: 0 }
     const cur = { x: 0, y: 0 }
+    const kick = { x: 0, y: 0 }
+    let last: { x: number; y: number; t: number } | null = null
     const onMove = (e: PointerEvent) => {
       if (e.pointerType !== 'mouse') return
       target.x = (e.clientX / window.innerWidth) * 2 - 1
       target.y = (e.clientY / window.innerHeight) * 2 - 1
+      const now = performance.now()
+      if (last) {
+        const dt = Math.max(8, now - last.t)
+        kick.x += ((e.clientX - last.x) / dt) * 0.02
+        kick.y += ((e.clientY - last.y) / dt) * 0.02
+      }
+      last = { x: e.clientX, y: e.clientY, t: now }
     }
     window.addEventListener('pointermove', onMove, { passive: true })
 
@@ -243,6 +255,15 @@ export function Landing() {
       const py = cur.y * amp
       for (const p of plates) p.style.translate = `${(-px * 9).toFixed(2)}px ${(-py * 6).toFixed(2)}px`
       head.style.translate = `${(px * 5).toFixed(2)}px ${(py * 3).toFixed(2)}px`
+      // a fast sweep knocks the name out of register; it springs back
+      const decay = Math.exp(-dt * 6)
+      kick.x = Math.max(-0.12, Math.min(0.12, kick.x * decay))
+      kick.y = Math.max(-0.08, Math.min(0.08, kick.y * decay))
+      const kx = still || !s.live ? 0 : kick.x
+      const ky = still || !s.live ? 0 : kick.y
+      head.style.setProperty('--vx', `${kx.toFixed(4)}em`)
+      head.style.setProperty('--vy', `${ky.toFixed(4)}em`)
+      head.style.setProperty('--vg', Math.min(1, Math.hypot(kx, ky) * 14).toFixed(3))
       if (dust.current) {
         dust.current.px = px
         dust.current.py = py
@@ -262,7 +283,9 @@ export function Landing() {
 
   const fire = (e: React.PointerEvent) => {
     if ((e.target as HTMLElement).closest('a, button')) return
-    if (state.current.posterVisible && state.current.live) fx.current?.volley()
+    if (!state.current.posterVisible || !state.current.live) return
+    const r = platePosterRef.current!.getBoundingClientRect()
+    fx.current?.volleyAt(((e.clientX - r.left) / r.width) * PLATE_W, ((e.clientY - r.top) / r.height) * PLATE_H)
   }
 
   const enlist = () => {
@@ -328,6 +351,7 @@ export function Landing() {
                     height: pct(PLANET.r * 2, PLATE_H),
                   }}
                 />
+                <div ref={halftoneRef} className="plate__halftone" aria-hidden="true" />
                 <canvas ref={fxCanvasRef} className="plate__fx" aria-hidden="true" />
                 <div className="plate__fade" aria-hidden="true" />
               </div>
@@ -350,7 +374,21 @@ export function Landing() {
           </div>
 
           <div ref={beamRef} className="beam" aria-hidden="true">
-            <span className="beam__readout">Scanning plate</span>
+            <span className="beam__dither" />
+            <span className="beam__readout">
+              <span>Scanning plate</span>
+              <span className="beam__coord">X 0000 · Y 0941</span>
+            </span>
+          </div>
+
+          <div className="warmup" aria-hidden="true">
+            <svg viewBox="0 0 40 40" fill="none">
+              <circle cx="20" cy="20" r="15" stroke="currentColor" strokeWidth="1" />
+              <circle cx="20" cy="20" r="8" stroke="currentColor" strokeWidth="1.2" />
+              <path d="M20 2v36M2 20h36" stroke="currentColor" strokeWidth="1" />
+              <circle cx="20" cy="20" r="3" fill="var(--ink-red)" />
+            </svg>
+            <p>Warming the press</p>
           </div>
 
           <PrintMarks ref={marksRef} />

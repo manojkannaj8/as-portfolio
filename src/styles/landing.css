@@ -13,10 +13,70 @@
   --name-bottom: max(var(--gutter), calc(var(--plate-floor, 40px) + 6px));
 }
 
+/* a gunsight over the sky once the poster is live */
 @media (hover: hover) and (pointer: fine) {
   .stage.is-live .world--poster {
-    cursor: crosshair;
+    cursor:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='36' viewBox='0 0 36 36' fill='none'%3E%3Ccircle cx='18' cy='18' r='9' stroke='%23efe2c4' stroke-width='1.4'/%3E%3Cpath d='M18 2v9M18 25v9M2 18h9M25 18h9' stroke='%23efe2c4' stroke-width='1.4'/%3E%3Ccircle cx='18' cy='18' r='1.6' fill='%23e3401c'/%3E%3C/svg%3E")
+        18 18,
+      crosshair;
   }
+}
+
+/* press warm-up: only seen when the plates are slow to decode */
+.warmup {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 18px;
+  pointer-events: none;
+  color: var(--paper);
+  opacity: 0;
+  animation: warmup-in 0.5s 0.35s var(--ease-out) forwards;
+}
+.warmup svg {
+  width: 56px;
+  height: 56px;
+  animation: warmup-spin 2.4s linear infinite;
+}
+.warmup svg circle:first-child {
+  stroke-dasharray: 4 6;
+}
+.warmup p {
+  font: 500 11px/1 var(--font-mono);
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: rgb(239 226 196 / 0.6);
+}
+.stage.is-printing .warmup,
+.stage.is-live .warmup {
+  animation: none;
+  opacity: 0;
+  transition: opacity 0.4s;
+}
+@keyframes warmup-in {
+  to {
+    opacity: 1;
+  }
+}
+@keyframes warmup-spin {
+  to {
+    rotate: 360deg;
+  }
+}
+
+/* halftone screen: dots of open ink grow until the print is continuous tone */
+.plate__halftone {
+  position: absolute;
+  inset: -2px;
+  z-index: 2;
+  display: none;
+  pointer-events: none;
+  --dot: 0px;
+  background: radial-gradient(circle at 50% 50%, transparent var(--dot), #0b1322 calc(var(--dot) + 0.8px)) 0 0 / 7px 7px;
 }
 
 .world {
@@ -270,35 +330,47 @@
   margin-left: -0.04em;
 }
 
-/* misregistered ink ghosts, pulled into register during the arrival */
-.headline--ink .word::before,
-.headline--ink .word::after {
+/* misregistered ink ghosts, pulled into register during the arrival.
+   --mx/--my/--ghost come from the arrival (per letter); --vx/--vy/--vg come from
+   pointer speed, so a fast sweep of the mouse knocks the press briefly out of register. */
+.headline {
+  --vx: 0em;
+  --vy: 0em;
+  --vg: 0;
+}
+.ch {
+  position: relative;
+  display: inline-block;
+  isolation: isolate;
+}
+.headline--ink .ch::before,
+.headline--ink .ch::after {
   content: attr(data-text);
   position: absolute;
   inset: 0;
   pointer-events: none;
   z-index: -1;
-  opacity: var(--ghost);
+  opacity: max(var(--ghost), var(--vg));
 }
 
-.headline--ink .word::before {
-  transform: translate(var(--mx), var(--my));
+.headline--ink .ch::before {
+  transform: translate(calc(var(--mx) + var(--vx)), calc(var(--my) + var(--vy)));
 }
 
-.headline--ink .word::after {
-  transform: translate(calc(var(--mx) * -0.7), calc(var(--my) * -0.7));
+.headline--ink .ch::after {
+  transform: translate(calc((var(--mx) + var(--vx)) * -0.7), calc((var(--my) + var(--vy)) * -0.7));
 }
 
-.headline--ink .word--last::before {
+.headline--ink .word--last .ch::before {
   color: var(--ink-mustard);
 }
-.headline--ink .word--last::after {
+.headline--ink .word--last .ch::after {
   color: #2f5f9e;
 }
-.headline--ink .word--first::before {
+.headline--ink .word--first .ch::before {
   color: var(--ink-orange);
 }
-.headline--ink .word--first::after {
+.headline--ink .word--first .ch::after {
   color: #3d78bd;
 }
 
@@ -611,15 +683,44 @@
   background: linear-gradient(to right, rgb(180 220 255 / 0), rgb(180 220 255 / 0.09));
 }
 
+/* registration fringe on the scan edge */
+.beam::after {
+  content: '';
+  position: absolute;
+  inset: 0 -4px;
+  border-left: 1px solid rgb(227 64 28 / 0.75);
+  border-right: 1px solid rgb(61 120 189 / 0.85);
+}
+
+/* ahead of the beam the print breaks up into a dot screen before it is redrawn */
+.beam__dither {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 2px;
+  width: min(16vw, 180px);
+  background: radial-gradient(circle, #0d0f10 1.1px, transparent 1.6px) 0 0 / 5px 5px;
+  -webkit-mask: linear-gradient(to right, #000, transparent);
+  mask: linear-gradient(to right, #000, transparent);
+  opacity: 0.85;
+}
+
 .beam__readout {
   position: absolute;
   top: 46%;
   left: 12px;
+  display: grid;
+  gap: 7px;
   white-space: nowrap;
   font: 500 10.5px/1 var(--font-mono);
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: #f4fbff;
+  text-shadow: 0 0 8px rgb(13 15 16 / 0.9);
+}
+.beam__coord {
+  color: rgb(244 251 255 / 0.7);
+  font-variant-numeric: tabular-nums;
 }
 
 /* ------------------------------------------------------------------ drafting sheet */

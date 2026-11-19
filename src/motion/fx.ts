@@ -8,7 +8,8 @@ import { dpr } from './env'
  * The canvas is sized to the plate rect; all maths happens in plate units.
  */
 
-type Bolt = { x: number; y: number; age: number; len: number; speed: number; hue: 'red' | 'amber' }
+type Bolt = { x: number; y: number; age: number; len: number; speed: number; hue: 'red' | 'amber'; dx: number; dy: number; left: number }
+type Burst = { x: number; y: number; age: number; sparks: { a: number; v: number }[] }
 type Flash = { x: number; y: number; age: number }
 type Ship = { x: number; y: number; speed: number; age: number; life: number; size: number }
 
@@ -17,10 +18,11 @@ export class PlateFx {
   private scale = 1
   private bolts: Bolt[] = []
   private flashes: Flash[] = []
+  private bursts: Burst[] = []
   private ships: Ship[] = []
   private nextVolley = 2.6
   private nextShip = 0.8
-  private queue: { at: number; tip: number }[] = []
+  private queue: { at: number; tip: number; target?: readonly [number, number] }[] = []
   private clock = 0
   ambient = true
 
@@ -41,10 +43,35 @@ export class PlateFx {
     this.queue.push({ at: this.clock + 0.22, tip: 0 }, { at: this.clock + 0.3, tip: 1 })
   }
 
-  private spawnBolt(tip: number) {
+  /**
+   * Fire at a point on the plate (plate units). Bolts converge on the target and burst there.
+   * Targets behind the fighter's nose fall back to a straight volley along the heading.
+   */
+  volleyAt(x: number, y: number) {
+    if (x < CANNONS[0][0] + 80) return this.volley()
+    const t = [x, y] as const
+    this.queue.push({ at: this.clock, tip: 0, target: t }, { at: this.clock + 0.08, tip: 1, target: t })
+    this.queue.push({ at: this.clock + 0.2, tip: 0, target: t }, { at: this.clock + 0.28, tip: 1, target: t })
+  }
+
+  private spawnBolt(tip: number, target?: readonly [number, number]) {
     const [x, y] = CANNONS[tip]
-    this.bolts.push({ x, y, age: 0, len: 150 + Math.random() * 40, speed: 2300 + Math.random() * 300, hue: tip ? 'amber' : 'red' })
+    let [dx, dy] = HEADING
+    let left = Infinity
+    if (target) {
+      const vx = target[0] - x
+      const vy = target[1] - y
+      left = Math.hypot(vx, vy)
+      dx = vx / left
+      dy = vy / left
+    }
+    this.bolts.push({ x, y, age: 0, len: 150 + Math.random() * 40, speed: 2300 + Math.random() * 300, hue: tip ? 'amber' : 'red', dx, dy, left })
     this.flashes.push({ x, y, age: 0 })
+  }
+
+  private spawnBurst(x: number, y: number) {
+    const sparks = Array.from({ length: 9 }, () => ({ a: Math.random() * Math.PI * 2, v: 120 + Math.random() * 220 }))
+    this.bursts.push({ x, y, age: 0, sparks })
   }
 
   private spawnShip() {
@@ -75,17 +102,26 @@ export class PlateFx {
     }
     this.queue = this.queue.filter((q) => {
       if (q.at <= this.clock) {
-        this.spawnBolt(q.tip)
+        this.spawnBolt(q.tip, q.target)
         return false
       }
       return true
     })
     for (const b of this.bolts) {
       b.age += dt
-      b.x += HEADING[0] * b.speed * dt
-      b.y += HEADING[1] * b.speed * dt
+      const d = b.speed * dt
+      b.x += b.dx * d
+      b.y += b.dy * d
+      b.left -= d
+      if (b.left <= 0 && b.left > -d) {
+        // reached the target: burst, then let the tail run out
+        this.spawnBurst(b.x + b.dx * b.left, b.y + b.dy * b.left)
+        b.len = Math.min(b.len, 60)
+      }
     }
-    this.bolts = this.bolts.filter((b) => b.x - b.len * HEADING[0] < PLATE_W + 40)
+    this.bolts = this.bolts.filter((b) => b.x - b.len * b.dx < PLATE_W + 40 && b.left > -b.len)
+    for (const u of this.bursts) u.age += dt
+    this.bursts = this.bursts.filter((u) => u.age < 0.5)
     for (const f of this.flashes) f.age += dt
     this.flashes = this.flashes.filter((f) => f.age < 0.14)
     const [dx, dy] = FLEET_LANE.dir
@@ -140,22 +176,54 @@ export class PlateFx {
       ctx.fill()
     }
 
+    for (const u of this.bursts) {
+      const k = u.age / 0.5
+      const e = 1 - (1 - k) ** 3
+      ctx.strokeStyle = `rgba(255,214,170,${0.8 * (1 - k)})`
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      ctx.arc(u.x, u.y, 6 + 34 * e, 0, Math.PI * 2)
+      ctx.stroke()
+      const g = ctx.createRadialGradient(u.x, u.y, 0, u.x, u.y, 30)
+      g.addColorStop(0, `rgba(255,240,215,${0.9 * (1 - k) ** 2})`)
+      g.addColorStop(1, 'rgba(242,123,41,0)')
+      ctx.fillStyle = g
+      ctx.beginPath()
+      ctx.arc(u.x, u.y, 30, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.strokeStyle = `rgba(255,170,90,${0.9 * (1 - k)})`
+      ctx.lineWidth = 1.6
+      for (const sp of u.sparks) {
+        const r0 = sp.v * e * 0.25
+        const r1 = r0 + 10 * (1 - k)
+        ctx.beginPath()
+        ctx.moveTo(u.x + Math.cos(sp.a) * r0, u.y + Math.sin(sp.a) * r0)
+        ctx.lineTo(u.x + Math.cos(sp.a) * r1, u.y + Math.sin(sp.a) * r1)
+        ctx.stroke()
+      }
+    }
+
     for (const b of this.bolts) {
-      const tx = b.x - HEADING[0] * b.len
-      const ty = b.y - HEADING[1] * b.len
+      // a bolt that has hit its target is clipped at the impact point
+      const head = b.left < 0 ? b.left : 0
+      const hx = b.x + b.dx * head
+      const hy = b.y + b.dy * head
+      const tx = b.x - b.dx * b.len
+      const ty = b.y - b.dy * b.len
+      if ((hx - tx) * b.dx + (hy - ty) * b.dy <= 0) continue
       const col = b.hue === 'red' ? '227,64,28' : '242,123,41'
       // glow
-      let g = ctx.createLinearGradient(tx, ty, b.x, b.y)
+      let g = ctx.createLinearGradient(tx, ty, hx, hy)
       g.addColorStop(0, `rgba(${col},0)`)
       g.addColorStop(1, `rgba(${col},0.5)`)
       ctx.strokeStyle = g
       ctx.lineWidth = 11
       ctx.beginPath()
       ctx.moveTo(tx, ty)
-      ctx.lineTo(b.x, b.y)
+      ctx.lineTo(hx, hy)
       ctx.stroke()
       // core
-      g = ctx.createLinearGradient(tx, ty, b.x, b.y)
+      g = ctx.createLinearGradient(tx, ty, hx, hy)
       g.addColorStop(0, `rgba(${col},0)`)
       g.addColorStop(0.6, `rgba(${col},0.95)`)
       g.addColorStop(1, 'rgba(255,238,210,1)')
@@ -163,7 +231,7 @@ export class PlateFx {
       ctx.lineWidth = 3.2
       ctx.beginPath()
       ctx.moveTo(tx, ty)
-      ctx.lineTo(b.x, b.y)
+      ctx.lineTo(hx, hy)
       ctx.stroke()
     }
     ctx.globalCompositeOperation = 'source-over'
@@ -172,6 +240,7 @@ export class PlateFx {
   clear() {
     this.bolts = []
     this.flashes = []
+    this.bursts = []
     this.ships = []
     this.queue = []
     this.ctx.setTransform(1, 0, 0, 1, 0, 0)

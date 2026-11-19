@@ -18,7 +18,12 @@ export function registerReveals(root: HTMLElement) {
   const blocks = gsap.utils.toArray<HTMLElement>('.reg', root)
   const strokes = gsap.utils.toArray<SVGElement>('.reveal-draw .draw', root)
 
+  const nums = gsap.utils.toArray<HTMLElement>('.chapter .chead__num', root)
+  const stencils = gsap.utils.toArray<HTMLElement>('.hmark__stencil', root)
+
   if (reducedMotion()) {
+    gsap.set(nums, { '--fill': 1 })
+    gsap.set(stencils, { '--r': '160%', '--os': 0.2 })
     gsap.set(titles, { clipPath: 'none', '--ghost': 0, '--mx': '0em', '--my': '0em' })
     gsap.set(blocks, { opacity: 1, x: 0, y: 0, '--reg': 0 })
     gsap.set(strokes, { strokeDashoffset: 0 })
@@ -40,6 +45,33 @@ export function registerReveals(root: HTMLElement) {
         scrollTrigger: { trigger: w, start: 'top 88%', once: true },
       },
     )
+  }
+
+  // honours are sprayed on through a stencil: the paint spreads from where the can is aimed,
+  // overspray haze settles back to a faint halo
+  for (const st of stencils) {
+    gsap
+      .timeline({ scrollTrigger: { trigger: st, start: 'top 82%', once: true } })
+      .fromTo(st, { '--r': '0%' }, { '--r': '160%', duration: 1.15, ease: 'power2.inOut' })
+      .fromTo(st, { '--os': 1 }, { '--os': 0.2, duration: 1.4, ease: 'power2.out' }, 0.2)
+  }
+
+  // chapter numerals fill with ink as the chapter is read
+  for (const n of nums) {
+    const sec = n.closest('.chapter')!
+    gsap.fromTo(n, { '--fill': 0 }, { '--fill': 1, ease: 'none', scrollTrigger: { trigger: sec, start: 'top 55%', end: 'bottom 75%', scrub: 0.6 } })
+  }
+
+  // seam: a scan line redraws the navy page as blueprint on the way into Service
+  const cover = root.querySelector('.seam-scan__cover')
+  if (cover)
+    gsap.fromTo(cover, { yPercent: 0 }, { yPercent: 104, ease: 'none', scrollTrigger: { trigger: cover.parentElement!, start: 'top 92%', end: 'top 8%', scrub: 0.4 } })
+
+  // seam: the honours sheet is laid down over the blueprint, then lifted away
+  const sheet = root.querySelector<HTMLElement>('.chapter--honours')
+  if (sheet) {
+    gsap.fromTo(sheet, { y: 90, rotate: -1.1 }, { y: 0, rotate: 0, ease: 'power2.out', scrollTrigger: { trigger: sheet, start: 'top bottom', end: 'top 25%', scrub: 0.6 } })
+    gsap.fromTo(sheet, { '--lift': 0 }, { '--lift': 1, ease: 'power1.in', immediateRender: false, scrollTrigger: { trigger: sheet, start: 'bottom 70%', end: 'bottom top', scrub: 0.6 } })
   }
 
   gsap.set(blocks, { opacity: 0, x: -10, y: 6, '--reg': 1 })

@@ -40,7 +40,10 @@ function Gauge({ value, max }: { value: number; max: number }) {
           </i>
         ))}
         <span className="gauge__dim" />
-        <span className="gauge__mark" />
+        <span className="gauge__jaw gauge__jaw--fixed" />
+        <span className="gauge__jaw gauge__jaw--slide">
+          <span className="gauge__vernier" />
+        </span>
       </div>
     </div>
   )
@@ -63,11 +66,11 @@ export function Academy() {
           </p>
         </div>
         <Gauge value={v} max={m} />
-        <div className="academy__syllabus reg">
+        <div className="academy__syllabus card reg">
           <h4 className="panel-title">Relevant coursework</h4>
           <ul>
             {academy.coursework.map((c, i) => (
-              <li key={c}>
+              <li key={c} style={{ '--i': i } as React.CSSProperties}>
                 <span aria-hidden="true">{String(i + 1).padStart(2, '0')}</span>
                 {c}
               </li>

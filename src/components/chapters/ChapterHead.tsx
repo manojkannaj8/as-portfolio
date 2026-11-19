@@ -21,7 +21,7 @@ export function InkTitle({ text, as: Tag = 'h2', className = '', id }: { text: s
 export function ChapterHead({ chapter, tone = 'dark' }: { chapter: Chapter; tone?: 'dark' | 'paper' }) {
   return (
     <header className={`chead chead--${tone}`}>
-      <span className="chead__num" aria-hidden="true">
+      <span className="chead__num" data-text={chapter.numeral} aria-hidden="true">
         {chapter.numeral}
       </span>
       <div className="chead__body">

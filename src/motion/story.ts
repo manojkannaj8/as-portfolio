@@ -1,6 +1,7 @@
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { cameraFor, type Rect } from '../scene/geometry'
+import { decode } from './decode'
 
 gsap.registerPlugin(ScrollTrigger)
 
@@ -72,7 +73,18 @@ export function buildStory(els: StoryEls, o: StoryOpts) {
   })
 
   let posterVisible = true
+  const coord = els.beam.querySelector<HTMLElement>('.beam__coord')
+  let lastX = -1
   tl.eventCallback('onUpdate', () => {
+    // the readout tracks the scan head in plate units
+    if (coord) {
+      const p = Math.min(1, Math.max(0, (tl.time() - T_SCAN) / (T_PULL - T_SCAN)))
+      const x = Math.round(gsap.parseEase('power1.inOut')(p) * 1672)
+      if (x !== lastX) {
+        lastX = x
+        coord.textContent = `X ${String(x).padStart(4, '0')} · Y 0941`
+      }
+    }
     const v = tl.time() < T_PULL
     if (v !== posterVisible) {
       posterVisible = v
@@ -111,7 +123,15 @@ export function buildStory(els: StoryEls, o: StoryOpts) {
     const at = T_PULL + 1.8 + i * 0.45
     tl.fromTo(c.dot, { scale: 0, transformOrigin: '50% 50%' }, { scale: 1, duration: 0.3, ease: 'back.out(3)' }, at)
     if (c.lines.length) tl.fromTo(c.lines, { strokeDashoffset: 1 }, { strokeDashoffset: 0, duration: 0.5, stagger: 0.35, ease: 'power2.inOut' }, at + 0.1)
-    if (c.label) tl.fromTo(c.label, { autoAlpha: 0, x: -6 }, { autoAlpha: 1, x: 0, duration: 0.5, ease: 'power2.out' }, at + 0.7)
+    if (c.label) {
+      tl.fromTo(c.label, { autoAlpha: 0, x: -6 }, { autoAlpha: 1, x: 0, duration: 0.5, ease: 'power2.out' }, at + 0.7)
+      const body = c.label.querySelector<HTMLElement>('.callout-label__body')
+      // values type themselves in as the label arrives (scrolling forward only)
+      if (body)
+        tl.call(() => {
+          if (tl.scrollTrigger?.direction !== -1) decode(body, 0.65)
+        }, [], at + 0.72)
+    }
   })
 
   tl.to({}, { duration: 0.01 }, T_END)

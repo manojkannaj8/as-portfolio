@@ -32,8 +32,8 @@ export const profile = {
 
   honours: [
     { event: 'Hack With GDG S3', result: '1st place', date: 'Feb 2026' },
-    { event: 'DTCC Employee Hackathon', result: 'Silver, Tech Trailblazer', date: 'Oct 2025' },
-    { event: 'Ingenium 4.0', result: '2nd place', date: 'Jan 2025' },
+    { event: 'DTCC Employee Hackathon', result: '2nd place, Tech Trailblazer', date: 'Oct 2025' },
+    { event: 'Ingenium 4.0', result: '3rd place', date: 'Jan 2025' },
   ],
 
   skills: {

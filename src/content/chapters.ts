@@ -22,6 +22,8 @@ export type Mission = {
   log: string[]
   loadout: string[]
   links: { label: string; href: string }[]
+  /** what the brief shows: a capture of the live site, or a schematic when none is public */
+  visual: { kind: 'screen'; src: string; small: string; host: string; href: string } | { kind: 'route' } | { kind: 'radar' }
 }
 
 export const missions: Mission[] = [
@@ -40,6 +42,7 @@ export const missions: Mission[] = [
       { label: 'Live on Render', href: 'https://corb.onrender.com/' },
       { label: 'Repository', href: 'https://github.com/Mitiox/CORB' },
     ],
+    visual: { kind: 'screen', src: '/shots/corb.webp', small: '/shots/corb-720.webp', host: 'corb.onrender.com', href: 'https://corb.onrender.com/' },
   },
   {
     code: 'M-02',
@@ -52,6 +55,7 @@ export const missions: Mission[] = [
     ],
     loadout: ['React', 'Vite', 'Tailwind CSS', 'Supabase', 'REST API'],
     links: [{ label: 'Repository', href: 'https://github.com/Mitiox/NexusFlow' }],
+    visual: { kind: 'route' },
   },
   {
     code: 'M-03',
@@ -61,6 +65,7 @@ export const missions: Mission[] = [
     log: ['Targets a problem faced by millions of people who currently lack access to an effective solution.'],
     loadout: ['Flutter', 'C++', 'Swift'],
     links: [{ label: 'Repository', href: 'https://github.com/Mitiox/Gabn' }],
+    visual: { kind: 'radar' },
   },
 ]
 
@@ -109,8 +114,8 @@ export type Honour = { mark: string; markSmall?: string; event: string; result: 
 
 export const honours: Honour[] = [
   { mark: '1', markSmall: 'st', event: 'Hack With GDG S3', result: 'First place', date: 'Feb 2026', iso: '2026-02' },
-  { mark: 'Ag', event: 'DTCC Employee Hackathon', result: 'Silver award, Tech Trailblazer category', date: 'Oct 2025', iso: '2025-10' },
-  { mark: '2', markSmall: 'nd', event: 'Ingenium 4.0', result: 'Second place', date: 'Jan 2025', iso: '2025-01' },
+  { mark: '2', markSmall: 'nd', event: 'DTCC Employee Hackathon', result: 'Second place (Silver), Tech Trailblazer category', date: 'Oct 2025', iso: '2025-10' },
+  { mark: '3', markSmall: 'rd', event: 'Ingenium 4.0', result: 'Third place', date: 'Jan 2025', iso: '2025-01' },
 ]
 
 export const certificates = [{ name: 'Learning Fundamentals of OS', issuer: 'Scaler', date: 'Oct 2025' }]

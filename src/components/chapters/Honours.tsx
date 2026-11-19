@@ -12,7 +12,7 @@ export function Honours() {
       <ol className="chapter__inner marks-list">
         {honours.map((h) => (
           <li key={h.event} className="hmark">
-            <span className="hmark__stencil reg" aria-hidden="true">
+            <span className="hmark__stencil" aria-hidden="true">
               {h.mark}
               {h.markSmall && <small>{h.markSmall}</small>}
             </span>

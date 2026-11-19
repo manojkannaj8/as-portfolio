@@ -20,6 +20,9 @@ export function Service() {
   const lead = service.find((p) => p.lead)!
   return (
     <section id="service" className="chapter chapter--service" aria-labelledby="service-title">
+      <div className="seam-scan" aria-hidden="true">
+        <div className="seam-scan__cover" />
+      </div>
       <div className="chapter__inner">
         <ChapterHead chapter={ch} />
       </div>
@@ -31,7 +34,10 @@ export function Service() {
           <li key={p.title} className={`post ${p.lead ? 'post--lead' : ''}`}>
             <div className="post__side reg">
               <span className="post__idx">{String(i + 1).padStart(2, '0')}</span>
-              <span className="post__tag">{p.tag}</span>
+              <span className="post__tag">
+                {i === 0 && <i className="post__live" aria-hidden="true" />}
+                {p.tag}
+              </span>
             </div>
             <div className="post__main">
               <h3 className="post__title reg">
